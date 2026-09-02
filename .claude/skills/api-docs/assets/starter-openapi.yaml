@@ -1,0 +1,246 @@
+openapi: 3.1.0
+
+info:
+  title: Example API
+  version: 1.0.0
+  description: |
+    What this API is for, who may call it, and anything true of every endpoint
+    (base URL conventions, rate limits, idempotency, pagination style).
+
+    This block and every `description` below are written by humans. Regenerating
+    the spec from code must preserve them.
+
+servers:
+  - url: https://api.example.com
+    description: Production
+  - url: https://sandbox.example.com
+    description: Sandbox — test credentials, no real charges
+
+tags:
+  - name: examples
+    description: The example resource.
+  - name: system
+    description: Operational endpoints. Not part of the business API.
+
+# Document-wide default. Public operations opt out with `security: []`.
+security:
+  - bearerAuth: []
+
+paths:
+  /v1/health:
+    get:
+      operationId: getHealth
+      summary: Liveness probe
+      tags: [system]
+      security: []
+      responses:
+        '200':
+          description: The service is up.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+        '503':
+          description: The service is unhealthy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /v1/examples:
+    get:
+      operationId: listExamples
+      summary: List examples, newest first
+      description: |
+        Longer prose belongs here: filtering rules, ordering guarantees, what
+        happens when the page is past the end.
+      tags: [examples]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: A page of examples.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExamplePage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      operationId: createExample
+      summary: Create an example
+      tags: [examples]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExampleBody'
+            examples:
+              minimal:
+                summary: Only the required fields
+                value:
+                  name: First example
+      responses:
+        '201':
+          description: The example was created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Example'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationFailed'
+
+  /v1/examples/{exampleId}:
+    parameters:
+      - name: exampleId
+        in: path
+        required: true
+        description: Identifier returned when the example was created.
+        schema:
+          type: string
+    get:
+      operationId: getExample
+      summary: Fetch one example
+      tags: [examples]
+      responses:
+        '200':
+          description: The example.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Example'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      operationId: deleteExample
+      summary: Delete an example
+      tags: [examples]
+      responses:
+        '204':
+          description: Deleted. No body is returned.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Where the token comes from and how long it lives.
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      required: false
+      description: 1-based page number.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit:
+      name: limit
+      in: query
+      required: false
+      description: Items per page.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  responses:
+    Unauthorized:
+      description: The bearer token is missing, expired or malformed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: No resource with that identifier.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ValidationFailed:
+      description: The request body failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Stable, machine-readable. Clients branch on this.
+        message:
+          type: string
+          description: Human-readable. May change without notice; do not parse.
+        details:
+          type: array
+          items:
+            type: string
+          description: Per-field validation messages, when applicable.
+
+    Example:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        # 3.1 nullability: a type array, NOT `nullable: true` (that is 3.0).
+        # Quote 'null' or YAML parses it as an actual null.
+        note:
+          type: [string, 'null']
+          description: Optional free text. Null when never set.
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateExampleBody:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        note:
+          type: string
+
+    ExamplePage:
+      type: object
+      required: [items, page, limit, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Example'
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+          description: Total matching items across all pages.
