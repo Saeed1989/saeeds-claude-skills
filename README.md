@@ -14,6 +14,7 @@ just the index.
 | --- | --- | --- |
 | [`drawio-diagrams`](.claude/skills/drawio-diagrams/SKILL.md) | "diagram this repo", "draw the data flow", "flowchart", "architecture picture", "visualize this codebase", plus named types (sequence, ER, C4, state machine, org chart) and any `.drawio` file work | An **editable** uncompressed `.drawio` file you open in diagrams.net and rearrange by hand — real shapes and geometry, not an image |
 | [`api-docs`](.claude/skills/api-docs/SKILL.md) | "document the API", "generate an OpenAPI spec", "swagger", "what endpoints does this expose", "update the API docs after my changes", "did I break the API" | An **OpenAPI 3.1** spec that matches the handlers, kept in sync without clobbering human-written prose |
+| [`commit-message`](.claude/skills/commit-message/SKILL.md) | "commit this", "commit my changes", "write a commit message", "what should I call this commit", "stage and commit this", plus rewording or amending an existing message | A **Conventional Commits** message for the staged diff, proposed for approval — never committed automatically |
 
 ### drawio-diagrams
 
@@ -56,10 +57,33 @@ compose into a CI job.
 Framework coverage for route extraction: Express, NestJS, FastAPI, Flask,
 Django REST, Spring Boot, Go (chi/gin/echo), Rails, Laravel.
 
+### commit-message
+
+No scripts — the substance is reading the staged diff properly and resisting two
+temptations: restating the filenames instead of describing the change, and
+running `git commit` before anyone has seen the message. It proposes, then waits.
+
+```
+type(scope): summary        # feat fix refactor chore docs test perf
+                            # imperative, under 72 chars, no trailing period
+
+Optional body, wrapped at 72, explaining why rather than what.
+```
+
+If the staged diff mixes unrelated concerns — a fix plus a dependency bump — it
+names the groups and proposes separate commits with the `git reset` /
+`git add -p` commands, rather than one message papering over both.
+
+`references/examples.md` calibrates the style against this repo's own history,
+which for now means quoting our off-style commits as annotated counter-examples
+with rewrites: there is nothing in the log yet worth imitating. Refresh it as
+real examples accumulate.
+
 ## Requirements
 
 Python 3 (developed against 3.10). All five scripts are **standard library
-only** — nothing to install for drawio-diagrams.
+only** — nothing to install for `drawio-diagrams`, and `commit-message` ships no
+scripts at all.
 
 `api-docs` reads YAML specs through PyYAML if it is present; without it the
 scripts handle JSON and say so rather than failing quietly. Since specs are
@@ -78,6 +102,9 @@ pip install pyyaml
   references/     # loaded on demand, not up front
   assets/         # templates and starting points
 ```
+
+Not every skill needs all four — `commit-message` is `SKILL.md` plus one
+reference file.
 
 `SKILL.md` frontmatter descriptions are trigger-heavy on purpose: they are what
 decides whether a skill fires on a request that never names it literally.
